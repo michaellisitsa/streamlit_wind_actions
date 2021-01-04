@@ -27,3 +27,13 @@ def test_regional_wind_speed_50_ARI_multiple_regions(Wind_new,region,ARI,Vr):
     Wind_new.ARI = ARI
     Wind_new.regional_wind_speed()
     assert Wind_new.Vr == pytest.approx(Vr)
+
+@pytest.mark.parametrize('height,terrain_category,M_z_cat',
+                          [(0,1,0.99),
+                           (25,1,1.205),
+                           (25,1.5,(1.205+1.10)/2)])
+def test_terrain_multiplier_interpolation(Wind_new,height,terrain_category,M_z_cat):
+    Wind_new.height = height
+    Wind_new.terrain_category = terrain_category
+    Wind_new.terrain_multiplier()
+    assert Wind_new.M_z_cat == pytest.approx(M_z_cat,rel=1e-2)
