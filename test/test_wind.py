@@ -16,7 +16,7 @@ from enum_vals import Regions, Cases
 
 @pytest.fixture(name="Wind_mult")
 def instantiate_Wind_multiplier_class():
-    """This fixture instantiates Dimensions as an SHS chord under AS code"""
+    """This fixture instantiates the Wind Multiplier class"""
     return wind_multipliers.Wind_multipliers()
 
 @pytest.mark.parametrize('height,terrain_category,M_z_cat',
@@ -31,16 +31,19 @@ def test_terrain_multiplier_interpolation(Wind_mult,height,terrain_category,M_z_
 
 #TODO - mock a Wind_mult inputs
 # @pytest.fixture(name="Wind_new")
-# def instantiate_Wind_new():
+# def instantiate_Wind_new(Wind_mult):
 #     """This fixture instantiates Dimensions as an SHS chord under AS code"""
 #     return wind.wind(render_hc=False,Wind_mult,loadcase)
 
-# @pytest.mark.parametrize('region,ARI,Vr',
-#                           [(Regions.A1,50,39),
-#                            (Regions.B,50,44),
-#                            (Regions.C,50,1.05 * 52)])
-# def test_regional_wind_speed_50_ARI_multiple_regions(Wind_new,region,ARI,Vr):
-#     Wind_new.region = region
-#     Wind_new.ARI = ARI
-#     Wind_new.regional_wind_speed()
-#     assert Wind_new.Vr == pytest.approx(Vr)
+@pytest.mark.parametrize('region,ARI,Vr',
+                          [(Regions.A1,50,39),
+                           (Regions.B,50,44),
+                           (Regions.C,50,1.05 * 52)])
+def test_regional_wind_speed_50_ARI_multiple_regions(Wind_mult,region,ARI,Vr):
+    Wind_mult.region = region
+    Wind_new = wind.Wind(render_hc=False,
+                         Wind_mult = Wind_mult,
+                         loadcase='test')
+    Wind_new.ARI = ARI
+    Wind_new.calc_regional_wind_speed()
+    assert Wind_new.Vr == pytest.approx(Vr)
