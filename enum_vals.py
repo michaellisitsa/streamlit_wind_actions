@@ -23,3 +23,18 @@ class Cases(enum.Enum):
     ULS = enum.auto()
     SLS = enum.auto()
     FAT = enum.auto()
+
+class Directions(enum.Enum):
+    ANY = enum.auto()
+    N = enum.auto()
+    NE = enum.auto()
+    E = enum.auto()
+    SE = enum.auto()
+    S = enum.auto()
+    SW = enum.auto()
+    W = enum.auto()
+    NW = enum.auto()
+
+class Significance(enum.Enum):
+    MAJOR = enum.auto()
+    MINOR = enum.auto()

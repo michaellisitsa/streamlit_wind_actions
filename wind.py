@@ -7,7 +7,7 @@ from handcalcs import handcalc
 import forallpeople as u
 u.environment('structural')
 
-from enum_vals import Regions, Cases
+from enum_vals import Regions, Cases, Directions, Significance
 import helper_funcs
 
 from typing import TYPE_CHECKING

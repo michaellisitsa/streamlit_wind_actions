@@ -6,7 +6,7 @@ import streamlit as st
 import geometry
 import wind
 import wind_multipliers
-from enum_vals import Regions, Cases
+from enum_vals import Regions, Cases, Directions, Significance
 
 render_hc = st.sidebar.checkbox("Render hand calcs", value=True)
 
@@ -16,6 +16,8 @@ def main():
     Wind_mult.st_terrain_inputs()
     Wind_mult.terrain_multiplier()
     Wind_mult.st_wind_multipliers_input()
+    Wind_mult.st_wind_direction_inputs()
+    Wind_mult.calc_wind_direction_multiplier()
     Wind_mult.render_multipliers()
 
     Wind_ULS = wind.Wind(render_hc,Wind_mult,'ULS')

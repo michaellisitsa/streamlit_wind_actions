@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from scipy.interpolate import griddata
 
-from enum_vals import Regions, Cases
+from enum_vals import Regions, Cases, Directions, Significance
 import helper_funcs
 
 from handcalcs import handcalc
@@ -18,6 +18,11 @@ class Wind_multipliers:
     def st_region_inputs(self):
         st.sidebar.subheader("Select Wind Region (used for $V_r$ calculation):")
         self.region = Regions[st.sidebar.selectbox("Select Wind Region",[r.name for r in Regions])]
+
+    def st_wind_direction_inputs(self):
+        st.sidebar.subheader("Select Wind Direction Parameters (used for $M_d$ calculation):")
+        self.wind_direc = Directions[st.sidebar.selectbox("Select Wind Direction Cl 3.3",[r.name for r in Directions])]
+        self.significance = Significance[st.sidebar.selectbox("Select structure significance Cl 3.3.2",[s.name for s in Significance])]
 
     def st_terrain_inputs(self):
         st.sidebar.subheader("Inputs for $M_{z,cat}$ - Terrain Multiplier")
@@ -51,23 +56,54 @@ class Wind_multipliers:
         st.sidebar.subheader("Wind Speed Multipliers (manual entry)")
         self.M_s = st.sidebar.number_input("Shielding Multiplier (M_s)",min_value=0.7,max_value=1.0,value=1.0,step=0.05)
         self.M_t = st.sidebar.number_input("Topographic Multiplier (M_t)",min_value=1.0,max_value=2.0,value=1.0,step=0.05)
-        self.M_d = st.sidebar.number_input("Wind Direction Multiplier (M_d)",min_value=0.80,max_value=1.0,value=1.0,step=0.05)
+
+    def calc_wind_direction_multiplier(self):
+            """Calculate regional wind speed based on region and ARI"""
+            #Hardcode table of regional wind speeds
+            self.directions_table = pd.DataFrame({
+                        'Direction':['ANY','N', 'NE',  'E',  'SE', 'S',  'SW', 'W',  'NW'],
+                        'A1':       [1.00, 0.90, 0.80, 0.80, 0.80, 0.85, 0.95, 1.00, 0.95],
+                        'A2':       [1.00, 0.80, 0.80, 0.80, 0.95, 0.90, 0.95, 1.00, 0.95],
+                        'A3':       [1.00, 0.85, 0.80, 0.80, 0.80, 0.80, 0.85, 0.90, 1.00],
+                        'A4':       [1.00, 0.90, 0.85, 0.90, 0.90, 0.95, 0.95, 0.95, 0.90],
+                        'A5':       [1.00, 1.00, 0.85, 0.80, 0.80, 0.85, 0.90, 1.00, 0.95],
+                        'A6':       [1.00, 0.85, 0.95, 1.00, 0.95, 0.85, 0.95, 1.00, 0.95],
+                        'A7':       [1.00, 0.90, 0.90, 0.80, 0.90, 0.90, 0.90, 1.00, 1.00],
+                        'W':        [1.00, 1.00, 0.95, 0.80, 0.90, 1.00, 1.00, 0.90, 0.95]})
+            self.directions_table.set_index('Direction',inplace=True)
+
+            for i in ['B','C','D']:
+                self.directions_table[i] = np.where((self.significance is Significance.MAJOR),
+                                                0.95,
+                                                1.0)
+
+            st.table(self.directions_table)
+            #Check if ARI inputted is within wind_regional table.
+            #If ARI in list get the value by region and ARI, else use equations
+            self.M_d = self.directions_table.loc[self.wind_direc.name,self.region.name]
+            st.write(self.M_d)
+
 
     def render_multipliers(self):
-        args = {'M_z_cat':self.M_z_cat,
+        args = {'height':self.height * u.m,
+                'terrain_category':self.terrain_category,
+                'M_z_cat':self.M_z_cat,
+                'significance':self.significance.name,
+                'wind_direction':self.wind_direc.name,
                 'M_s':self.M_s,
                 'M_t':self.M_t,
-                'M_d':self.M_d,
-                'height':self.height * u.m,
-                'terrain_category':self.terrain_category}
+                'M_d':self.M_d
+}
 
         @handcalc()
-        def render_multipliers_func(M_z_cat,M_s,M_t,M_d,height,terrain_category):
+        def render_multipliers_func(height,terrain_category,M_z_cat,M_s,M_t,M_d,significance,wind_direction):
             height #Height at which M\_z\_cat taken in T4.2
             terrain_category #Terrain type used in T4.2
             M_z_cat #Refer details in M\_z\_cat Interpolation note below
             M_s
             M_t
+            significance
+            wind_direction
             M_d
 
         with st.beta_expander("Expand for Terrain Multiplier T4.2"):

@@ -47,3 +47,6 @@ def test_regional_wind_speed_50_ARI_multiple_regions(Wind_mult,region,ARI,Vr):
     Wind_new.ARI = ARI
     Wind_new.calc_regional_wind_speed()
     assert Wind_new.Vr == pytest.approx(Vr)
+
+# @pytest.mark.parametrize()
+# def test_site_wind_speed_against_
