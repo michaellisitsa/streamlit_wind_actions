@@ -77,12 +77,9 @@ class Wind_multipliers:
                                                 0.95,
                                                 1.0)
 
-            st.table(self.directions_table)
             #Check if ARI inputted is within wind_regional table.
             #If ARI in list get the value by region and ARI, else use equations
             self.M_d = self.directions_table.loc[self.wind_direc.name,self.region.name]
-            st.write(self.M_d)
-
 
     def render_multipliers(self):
         args = {'height':self.height * u.m,
@@ -92,8 +89,7 @@ class Wind_multipliers:
                 'wind_direction':self.wind_direc.name,
                 'M_s':self.M_s,
                 'M_t':self.M_t,
-                'M_d':self.M_d
-}
+                'M_d':self.M_d}
 
         @handcalc()
         def render_multipliers_func(height,terrain_category,M_z_cat,M_s,M_t,M_d,significance,wind_direction):
@@ -106,14 +102,18 @@ class Wind_multipliers:
             wind_direction
             M_d
 
-        with st.beta_expander("Expand for Terrain Multiplier T4.2"):
+        with st.beta_expander("Expand for Terrain Multiplier Table T4.2"):
             st.table(self.terrain_table)
+
+        with st.beta_expander("Expand for Wind Direction Multiplier Table T3.2"):        
+            st.table(self.directions_table)
+
 
         st.subheader("Site Wind Speed multipliers:")
         multipliers_latex = render_multipliers_func(**args)
         st.latex(multipliers_latex[0])
         st.markdown("""
-        #### M_z_cat Interpolation:
+        #### $M_{z,cat}$ Interpolation:
         M_z_cat is calculated from T4.2. Interpolation using scipy.interpolate.griddata
         https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.griddata.html
         Interpolation is linear, and values are rounded to the nearest integer as required in code

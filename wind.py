@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from wind_multipliers import Wind_multipliers
 
 class Wind:
-    def __init__(self,render_hc,Wind_mult: 'Wind_multipliers',loadcase):
+    def __init__(self,render_hc,Wind_mult: 'Wind_multipliers',loadcase: Cases):
         self.render_hc = render_hc
         self.Wind_mult = Wind_mult
         self.loadcase = loadcase
@@ -25,7 +25,7 @@ class Wind:
 
     def st_wind_speed_inputs(self):
         st.sidebar.subheader("Select Average Recurrence Interval:")
-        self.ARI = st.sidebar.number_input(f"Select ARI for {self.loadcase} Wind:",min_value = 1, max_value = 10000, value=1000, key=self.loadcase)
+        self.ARI = st.sidebar.number_input(f"Select ARI for {self.loadcase.name} Wind:",min_value = 1, max_value = 10000, value=1000, key=self.loadcase)
 
     def calc_regional_wind_speed(self):
         """Calculate regional wind speed based on region and ARI"""
@@ -93,6 +93,6 @@ class Wind:
             return V_sit_beta
 
         #Render handcalcs (or just run equation)
-        if self.render_hc: st.subheader(f"Site {self.loadcase} Wind Speed:")
+        if self.render_hc: st.subheader(f"Site {self.loadcase.name} Wind Speed:")
         V_sit_latex, self.V_sit_beta = helper_funcs.func_by_run_type(self.render_hc, args, calc_site_wind_speed_func)
         if self.render_hc: st.latex(V_sit_latex)

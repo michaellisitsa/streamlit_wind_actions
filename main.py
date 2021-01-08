@@ -20,16 +20,22 @@ def main():
     Wind_mult.calc_wind_direction_multiplier()
     Wind_mult.render_multipliers()
 
-    Wind_ULS = wind.Wind(render_hc,Wind_mult,'ULS')
+    Wind_ULS = wind.Wind(render_hc,Wind_mult,Cases.ULS)
     Wind_ULS.st_wind_speed_inputs()
     Wind_ULS.calc_regional_wind_speed()
     Wind_ULS.st_display_regional_wind_speed()
     Wind_ULS.calc_site_wind_speed()
 
-    Wind_SLS = wind.Wind(render_hc,Wind_mult,'SLS')
+    Wind_SLS = wind.Wind(render_hc,Wind_mult,Cases.SLS)
     Wind_SLS.st_wind_speed_inputs()
     Wind_SLS.calc_regional_wind_speed()
     Wind_SLS.calc_site_wind_speed()
+
+    Geom_ULS = geometry.Geometry(Wind_ULS)
+    Geom_ULS.st_RHS_picker()
+    Geom_ULS.exposed_RHS_AS1170()
+    plot_RHS = Geom_ULS.st_RHS_plotting()
+    st.bokeh_chart(plot_RHS,False)
 
 if __name__ == '__main__':
     main()
