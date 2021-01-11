@@ -102,7 +102,14 @@ class Wind_multipliers:
             M_d
             return None
 
-        with st.beta_expander("Expand for Terrain Multiplier Table T4.2"):
+        with st.beta_expander("Expand for Terrain Multiplier Table and snapshots T4.2"):
+            col1, col2 = st.beta_columns(2)
+            st.text("Image Source: Aus Gvt Geosciences Australia - Local Wind Assessment in Aus Fig3.3 to 3.6\n\
+            https://api.semanticscholar.org/CorpusID:202756681")
+            col1.image("data/cat1.jpg",use_column_width=True)
+            col2.image("data/cat2.jpg",use_column_width=True)
+            col1.image("data/cat3.jpg",use_column_width=True)
+            col2.image("data/cat4.jpg",use_column_width=True)
             st.table(self.terrain_table)
 
         with st.beta_expander("Expand for Wind Direction Multiplier Table T3.2"):        

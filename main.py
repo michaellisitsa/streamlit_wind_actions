@@ -29,12 +29,13 @@ def main():
     Geom = geometry.Geometry(Wind)
     Geom.st_geom_picker()
     if Geom.structure_type is Structure_type.RHS:
-        Geom.exposed_RHS_AS1170()
+        Geom.calc_drag_RHS_AS1170()
+        Geom.calc_wind_pressure_RHS()
         plot_RHS = Geom.st_RHS_plotting()
         st.bokeh_chart(plot_RHS,False)
     elif Geom.structure_type is Structure_type.CHS:
-        Geom.exposed_CHS_AS1170()
-        Geom.calc_wind_pressure_HS()
+        Geom.calc_drag_CHS_AS1170()
+        Geom.calc_wind_pressure_CHS()
     elif Geom.structure_type is Structure_type.SIGN:
         Geom.calc_sign_AS1170()
         Geom.calc_wind_pressure_sign()

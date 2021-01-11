@@ -50,7 +50,7 @@ class Geometry:
             self.wind_angle = Wind_angle[st.sidebar.selectbox("Wind Angle to Structure",[a.name for a in Wind_angle])]
             self.solidity = st.sidebar.number_input("Solidity Ratio of the structure (Ratio solid area to total area):",min_value = 0.1, max_value=1.0,value = 1.0)
 
-    def exposed_RHS_AS1170(self):
+    def calc_drag_RHS_AS1170(self):
         """Crosswind coefficient - Figure E2(B)AS1170.2-2011"""
         aspect_Cfy_box = np.array([0.5, 1.5, 2.5, 4, 20, 50]) 
         Cfy_box = np.array([1.2, 0.8, 0.6, 0.8, 1, 1]) #C_fy values in Fig E2B
@@ -67,7 +67,7 @@ class Geometry:
         st.text(f'Alongwind drag factor is: {self.Cf_x:.2f}\n'
                  f'Crosswind drag factor is: {self.Cf_y:.2f}')
 
-    def exposed_CHS_AS1170(self):
+    def calc_drag_CHS_AS1170(self):
         if self.b * self.wind.V_sit_beta < 4:
             C_d = 1.2
         elif 4 < self.b * self.wind.V_sit_beta.value < 10:
@@ -78,25 +78,8 @@ class Geometry:
             C_d = max(0.6, 1.0 + 0.033 * log10(self.wind.V_sit_beta.value * h_r) - 0.025 * (log10(self.wind.V_sit_beta.value * h_r))**2)
         else:
             C_d = 1.2
-        self.C_fig = C_d
+        self.C_d = C_d
 
-    def st_RHS_plotting(self):
-        """
-        Plot the drag factors on a sharp cornered rectanglar exposed member
-        """
-        plot = Plot(title=None,match_aspect=True)
-        glyph = Rect(x=0,y=0,width=self.d, height = self.b, fill_color = "#cab2d6")
-        plot.add_glyph(glyph)
-        plot.add_layout(Arrow(end=NormalHead(fill_color="orange"),
-                        x_start=0, y_start=self.b/4, x_end=0, y_end=self.b/2))
-        plot.add_layout(Arrow(end=NormalHead(fill_color="orange"),
-                        x_start=-self.d/2,y_start=0, x_end=-self.d/4, y_end=0))
-        plot.add_layout(LinearAxis(),'below')
-        plot.add_layout(LinearAxis(),'left')
-        plot.add_glyph(Text(x=0,y=self.b/2,text=[f"Cf_y = {self.Cf_y:.2f}"],text_align="left"))
-        plot.add_glyph(Text(x=-self.d/4,y=0,text=[f"Cf_x = {self.Cf_x:.2f}"],text_align="left"))
-        return plot
- 
     def calc_sign_AS1170(self):
         """
         Calculate the drag factor C_pn for a sign in accordance with AS1170 hoardings App D2
@@ -214,22 +197,62 @@ class Geometry:
         C_fig_latex, (self.C_fig, self.K_p, self.sigma_wind) = helper_funcs.func_by_run_type(self.wind.Wind_mult.render_hc, args, calc_C_fig_func)
         if self.wind.Wind_mult.render_hc: st.latex(C_fig_latex)
 
-    def calc_wind_pressure_HS(self):
+    def calc_wind_pressure_CHS(self):
         """
-        Calculate wind pressure for a single point along the sign.
-        Where 45 deg and large aspect ratio, a slider will be used to show the values at a particular dist along the sign
+        Calculate horiztontal wind pressure for a single point along the CHS member.
         """
-        args = {'C_fig':self.C_fig,
+        args = {'C_d':self.C_d,
                 'V_des_theta':self.wind.V_sit_beta.value,
                 'C_dyn':self.C_dyn}
 
-        def calc_C_fig_func(C_fig,V_des_theta,C_dyn):
+        def calc_C_fig_func(C_d,V_des_theta,C_dyn):
             gamma_air = 1.2 #kg per m3 as per Cl 2.4.1
-            sigma_wind = 0.5 * gamma_air * V_des_theta**2 * C_fig * C_dyn #Pa
+            sigma_wind = 0.5 * gamma_air * V_des_theta**2 * C_d * C_dyn #Pa
             return sigma_wind
 
         C_fig_latex, self.sigma_wind = helper_funcs.func_by_run_type(self.wind.Wind_mult.render_hc, args, calc_C_fig_func)
         if self.wind.Wind_mult.render_hc: st.latex(C_fig_latex)
+
+    def calc_wind_pressure_RHS(self):
+        """
+        Calculate horiztontal wind pressure for a single point along the RHS member.
+        """
+        args = {'Cf_x':self.Cf_x,
+                'Cf_y':self.Cf_y,
+                'V_des_theta':self.wind.V_sit_beta.value,
+                'C_dyn':self.C_dyn}
+
+        def calc_drag_func(Cf_x,Cf_y,V_des_theta,C_dyn):
+            gamma_air = 1.2 #kg per m3 as per Cl 2.4.1
+            sigma_wind_horiz = 0.5 * gamma_air * V_des_theta**2 * Cf_x * C_dyn #Pa
+            sigma_wind_vert = 0.5 * gamma_air * V_des_theta**2 * Cf_y * C_dyn #Pa
+            return sigma_wind_horiz, sigma_wind_vert
+
+        drag_latex, (self.sigma_wind_horiz, self.sigma_wind_vert) = helper_funcs.func_by_run_type(self.wind.Wind_mult.render_hc, args, calc_drag_func)
+        if self.wind.Wind_mult.render_hc: st.latex(drag_latex)
+
+    def st_RHS_plotting(self):
+        """
+        Plot the drag factors on a sharp cornered rectanglar exposed member
+        """
+        plot = Plot(title=None,match_aspect=True)
+        glyph = Rect(x=0,y=0,width=self.d, height = self.b, fill_color = "#cab2d6")
+        plot.add_glyph(glyph)
+        plot.add_layout(Arrow(end=NormalHead(fill_color="orange"),
+                        x_start=0, y_start=self.b/4, x_end=0, y_end=self.b/2))
+        plot.add_layout(Arrow(end=NormalHead(fill_color="orange"),
+                        x_start=-self.d/2,y_start=0, x_end=-self.d/4, y_end=0))
+        plot.add_layout(LinearAxis(),'below')
+        plot.add_layout(LinearAxis(),'left')
+        plot.add_glyph(Text(x=0,y=self.b/2,text=[f"Cf_y = {self.Cf_y:.2f}\nsigma_wind = {self.sigma_wind_vert/1000:.2f} kPa"],text_align="left"))
+        plot.add_glyph(Text(x=-self.d/4,y=0,text=[f"Cf_x = {self.Cf_x:.2f}\nsigma_wind = {self.sigma_wind_horiz/1000:.2f} kPa"],text_align="left"))
+        return plot
+
+    def st_CHS_plotting(self):
+        """
+        Plot the drag factors on a circular section
+        """
+        pass
 
     def st_plot_wind_pressure(self):
         """
