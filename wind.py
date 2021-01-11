@@ -15,8 +15,7 @@ if TYPE_CHECKING:
     from wind_multipliers import Wind_multipliers
 
 class Wind:
-    def __init__(self,render_hc,Wind_mult: 'Wind_multipliers',loadcase: Cases):
-        self.render_hc = render_hc
+    def __init__(self,Wind_mult: 'Wind_multipliers',loadcase: Cases):
         self.Wind_mult = Wind_mult
         self.loadcase = loadcase
 
@@ -68,14 +67,15 @@ class Wind:
                 'ARI':self.ARI,
                 'Category':self.Wind_mult.region.name}
 
-        @handcalc()
         def st_display_regional_wind_speed_latex(V_r,ARI,Category):
             ARI
             Category
             V_r
+            return None
 
-        if self.render_hc: st.subheader("Regional Wind Speed:")
-        st.latex(st_display_regional_wind_speed_latex(**args)[0])
+        if self.Wind_mult.render_hc: st.subheader("Regional Wind Speed:")
+        V_r_latex, _ = helper_funcs.func_by_run_type(self.Wind_mult.render_hc, args, st_display_regional_wind_speed_latex)
+        if self.Wind_mult.render_hc: st.latex(V_r_latex)
 
         with st.beta_expander("Expand for regional wind T3.2"):
             st.table(self.wind_regional)
@@ -93,6 +93,6 @@ class Wind:
             return V_sit_beta
 
         #Render handcalcs (or just run equation)
-        if self.render_hc: st.subheader(f"Site {self.loadcase.name} Wind Speed:")
-        V_sit_latex, self.V_sit_beta = helper_funcs.func_by_run_type(self.render_hc, args, calc_site_wind_speed_func)
-        if self.render_hc: st.latex(V_sit_latex)
+        if self.Wind_mult.render_hc: st.subheader(f"Site {self.loadcase.name} Wind Speed:")
+        V_sit_latex, self.V_sit_beta = helper_funcs.func_by_run_type(self.Wind_mult.render_hc, args, calc_site_wind_speed_func)
+        if self.Wind_mult.render_hc: st.latex(V_sit_latex)

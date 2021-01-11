@@ -12,8 +12,8 @@ import forallpeople as u
 u.environment('structural')
 
 class Wind_multipliers:
-    def __init__(self):
-        pass
+    def __init__(self,render_hc):
+        self.render_hc = render_hc
 
     def st_region_inputs(self):
         st.sidebar.subheader("Select Wind Region (used for $V_r$ calculation):")
@@ -91,7 +91,6 @@ class Wind_multipliers:
                 'M_t':self.M_t,
                 'M_d':self.M_d}
 
-        @handcalc()
         def render_multipliers_func(height,terrain_category,M_z_cat,M_s,M_t,M_d,significance,wind_direction):
             height #Height at which M\_z\_cat taken in T4.2
             terrain_category #Terrain type used in T4.2
@@ -101,6 +100,7 @@ class Wind_multipliers:
             significance
             wind_direction
             M_d
+            return None
 
         with st.beta_expander("Expand for Terrain Multiplier Table T4.2"):
             st.table(self.terrain_table)
@@ -108,13 +108,14 @@ class Wind_multipliers:
         with st.beta_expander("Expand for Wind Direction Multiplier Table T3.2"):        
             st.table(self.directions_table)
 
-
-        st.subheader("Site Wind Speed multipliers:")
-        multipliers_latex = render_multipliers_func(**args)
-        st.latex(multipliers_latex[0])
-        st.markdown("""
-        #### $M_{z,cat}$ Interpolation:
-        M_z_cat is calculated from T4.2. Interpolation using scipy.interpolate.griddata
-        https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.griddata.html
-        Interpolation is linear, and values are rounded to the nearest integer as required in code
-        """)
+        #Render handcalcs (or just run equation)
+        if self.render_hc: st.subheader("Site Wind Speed multipliers:")
+        multipliers_latex, _ = helper_funcs.func_by_run_type(self.render_hc, args, render_multipliers_func)
+        if self.render_hc:
+            st.latex(multipliers_latex)
+            st.markdown("""
+            #### $M_{z,cat}$ Interpolation:
+            M_z_cat is calculated from T4.2. Interpolation using scipy.interpolate.griddata
+            https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.griddata.html
+            Interpolation is linear, and values are rounded to the nearest integer as required in code
+            """)

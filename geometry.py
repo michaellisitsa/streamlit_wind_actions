@@ -79,7 +79,6 @@ class Geometry:
         else:
             C_d = 1.2
         self.C_fig = C_d
-        st.write(f"C_d = {C_d:.2f}")
 
     def st_RHS_plotting(self):
         """
@@ -178,16 +177,22 @@ class Geometry:
         # len = st.slider("dist along sign",0.0,b,b/2.0,step=b/10.0)
         self.C_pn_func = C_pn_func
 
+        dist = (st.slider("dist along sign",0.0,b,b/2.0,step=b/10.0) if self.wind.Wind_mult.render_hc else 0)
+
         args = {'b':self.sign_w,
                 'c':self.sign_h,
                 'h':self.wind.Wind_mult.height,
-                'dist':st.slider("dist along sign",0.0,b,b/2.0,step=b/10.0)}
-        
-        st.subheader(f"Wind angle = {self.wind_angle.name}")
-        st.subheader(f"b/c = {b/c:.2f}, c/h = {c/h:.2f}")
-        st.subheader(f"e = {e:.2f}")
-        latex_C_pn, self.C_pn = handcalc(override="long")(C_pn_func)(**args)
-        st.latex(latex_C_pn)
+                'dist':dist}
+
+        C_pn_latex, self.C_pn = helper_funcs.func_by_run_type(self.wind.Wind_mult.render_hc, args, C_pn_func)
+
+        if self.wind.Wind_mult.render_hc:
+            st.subheader(f"Wind angle = {self.wind_angle.name}")
+            st.subheader(f"b/c = {b/c:.2f}, c/h = {c/h:.2f}")
+            st.subheader(f"e = {e:.2f}")
+            st.latex(C_pn_latex)
+        else:
+            st.subheader("")
 
     def calc_wind_pressure_sign(self):
         """
@@ -206,8 +211,8 @@ class Geometry:
             sigma_wind = 0.5 * gamma_air * V_des_theta**2 * C_fig * C_dyn #Pa
             return C_fig, K_p, sigma_wind
 
-        C_fig_latex, (self.C_fig, self.K_p, self.sigma_wind) = helper_funcs.func_by_run_type(self.wind.render_hc, args, calc_C_fig_func)
-        if self.wind.render_hc: st.latex(C_fig_latex)
+        C_fig_latex, (self.C_fig, self.K_p, self.sigma_wind) = helper_funcs.func_by_run_type(self.wind.Wind_mult.render_hc, args, calc_C_fig_func)
+        if self.wind.Wind_mult.render_hc: st.latex(C_fig_latex)
 
     def calc_wind_pressure_HS(self):
         """
@@ -223,8 +228,8 @@ class Geometry:
             sigma_wind = 0.5 * gamma_air * V_des_theta**2 * C_fig * C_dyn #Pa
             return sigma_wind
 
-        C_fig_latex, self.sigma_wind = helper_funcs.func_by_run_type(self.wind.render_hc, args, calc_C_fig_func)
-        if self.wind.render_hc: st.latex(C_fig_latex)
+        C_fig_latex, self.sigma_wind = helper_funcs.func_by_run_type(self.wind.Wind_mult.render_hc, args, calc_C_fig_func)
+        if self.wind.Wind_mult.render_hc: st.latex(C_fig_latex)
 
     def st_plot_wind_pressure(self):
         """
