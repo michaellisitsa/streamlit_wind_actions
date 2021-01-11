@@ -135,6 +135,24 @@ class Geometry:
                         elif dist > 4 * h:C_pn = 0.6
                         elif b - dist > 4 * h:C_pn = 0.6                        
                         return C_pn
+        elif self.wind_angle is Wind_angle.PARALLEL:
+            e = 0
+            if c/h <= 0.7:
+                def C_pn_func(b,c,h,dist):
+                    if dist <= 2 * c: C_pn = 1.2
+                    elif b - dist <= 2 * c: C_pn = 1.2
+                    elif 2 * c < dist <= 4 * c: C_pn = 0.6
+                    elif 2 * c < b - dist <= 4 * c: C_pn = 0.6
+                    elif dist > 4 * c: C_pn = 0.3
+                    elif b - dist > 4 * c: C_pn = 0.3
+                    return C_pn
+            elif c/h > 0.7:
+                def C_pn_func(b,c,h,dist):
+                    if dist <= 2 * h:C_pn = 1.0
+                    elif b - dist <= 2 * h:C_pn = 1.0
+                    elif dist >= 2 * h:C_pn = 0.25
+                    elif b - dist >= 2 * h:C_pn = 0.25                  
+                    return C_pn
         # len = st.slider("dist along sign",0.0,b,b/2.0,step=b/10.0)
         self.C_pn_func = C_pn_func
 
@@ -156,19 +174,19 @@ class Geometry:
         def calc_C_fig_func(C_pn,delta):
             K_p = 1 - (1 - delta)**2
             C_fig = C_pn * K_p
-            return C_fig
+            return C_fig, K_p
 
-        C_fig_latex, self.C_fig = helper_funcs.func_by_run_type(self.wind.render_hc, args, calc_C_fig_func)
+        C_fig_latex, (self.C_fig, self.K_p) = helper_funcs.func_by_run_type(self.wind.render_hc, args, calc_C_fig_func)
         if self.wind.render_hc: st.latex(C_fig_latex)
 
-    def st_plot_C_pn(self):
+    def st_plot_C_fig(self):
 
         #Set up plot
         plot = Plot()
 
         #Graph of Drag Factors along sign
         x = np.linspace(0,self.sign_w,num=50)
-        y = [self.C_pn_func(self.sign_w, self.sign_h,self.wind.Wind_mult.height,ix) for ix in x ]
+        y = [self.K_p*self.C_pn_func(self.sign_w, self.sign_h,self.wind.Wind_mult.height,ix) for ix in x ]
         source = ColumnDataSource(dict(x=x, y=y))
         drag_factor = Line(x='x',y='y',line_color = "#f46d43", line_width=3)
         plot.add_glyph(source, drag_factor)

@@ -38,9 +38,9 @@ def main():
     st.bokeh_chart(plot_RHS,False)
     Geom_ULS.st_sign_picker()
     Geom_ULS.calc_sign_AS1170()
-    plot_sign = Geom_ULS.st_plot_C_pn()
-    st.bokeh_chart(plot_sign,False)
     Geom_ULS.calc_C_fig()
+    plot_sign = Geom_ULS.st_plot_C_fig()
+    st.bokeh_chart(plot_sign,False)
 
 if __name__ == '__main__':
     main()
