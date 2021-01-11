@@ -1,9 +1,15 @@
 import streamlit as st
 
+from enum_vals import Regions, Cases, Directions, Significance, Wind_angle
+import helper_funcs
+
 from shapely.geometry import Polygon, MultiPolygon, LinearRing, box
 import shapely
 
+from math import log10
+
 import numpy as np
+from handcalcs import handcalc
 
 from typing import List, Optional, Union
 from typing import TYPE_CHECKING
@@ -11,7 +17,7 @@ if TYPE_CHECKING:
     from wind import Wind
 
 from bokeh.io import curdoc, show
-from bokeh.models import ColumnDataSource, Grid, LinearAxis, Plot, Rect, Arrow, NormalHead
+from bokeh.models import ColumnDataSource, Grid, LinearAxis, Plot, Rect, Arrow, NormalHead, Line, Range1d, Band, Span
 from bokeh.models.glyphs import Text
 from bokeh.plotting import figure, output_file, show
 
@@ -64,9 +70,123 @@ class Geometry:
         plot.add_layout(LinearAxis(),'left')
         plot.add_glyph(Text(x=0,y=self.b/2,text=[f"Cf_y = {self.Cf_y:.2f}"],text_align="left"))
         plot.add_glyph(Text(x=-self.d/4,y=0,text=[f"Cf_x = {self.Cf_x:.2f}"],text_align="left"))
+        return plot
 
+    def st_sign_picker(self):
+        st.sidebar.subheader("Sign Size and Direction")
+        self.sign_h = st.sidebar.number_input("Height of Signboard (mm)",min_value=100,max_value=10000,value=2000) / 1000
+        self.sign_w = st.sidebar.number_input("Width of Signboard (mm)",min_value=100,max_value=20000,value=2000) / 1000
+        self.wind_angle = Wind_angle[st.sidebar.selectbox("Wind Angle to Structure",[a.name for a in Wind_angle])]
+        self.solidity = st.sidebar.number_input("Solidity Ratio of the structure (Ratio solid area to total area):",min_value = 0.1, max_value=1.0,value = 1.0)
+
+    def calc_sign_AS1170(self):
+        b = self.sign_w
+        c = self.sign_h
+        h = self.wind.Wind_mult.height
+        if self.wind_angle is Wind_angle.NORMAL:
+            e = 0
+            if c/h < 0.2:
+                def C_pn_func(b,c,h,dist):
+                    C_pn = 1.4 + 0.3 * log10(b/c)
+                    return C_pn
+            elif c/h > 1.0:
+                raise RuntimeError("Sign cannot be taller than top of sign height")
+            elif b/c < 0.5:
+                raise RuntimeError("Standard does not cover sign more than twice as tall as it is wide")
+            elif 0.5 <= b/c <= 5:
+                def C_pn_func(b,c,h,dist):
+                    C_pn = 1.3 + 0.5 * ( 0.3 + log10(b/c)) * (0.8 - c/h)
+                    return C_pn
+            elif b/c > 5:
+                def C_pn_func(b,c,h,dist):
+                    C_pn = 1.7 - 0.5 * c/h
+                    return C_pn
+        elif self.wind_angle is Wind_angle.ANGLE_45:
+            if b/c < 0.5:
+                raise RuntimeError("Standard does not cover sign more than twice as tall as it is wide")
+            elif 0.5 <= b/c <= 5:
+                e = 0.2 * b
+                if c/h < 0.2:
+                    def C_pn_func(b,c,h,dist):
+                        C_pn = 1.4 + 0.3 * log10(b/c)
+                        return C_pn
+                elif 0.2 <= c/h <= 1.0:
+                    def C_pn_func(b,c,h,dist):
+                        C_pn = 1.3 + 0.5 * ( 0.3 + log10(b/c)) * (0.8 - c/h)
+                        return C_pn
+                    e = 0.2 * b
+            elif b/c > 5:
+                e = 0
+                if c/h <= 0.7:
+                    def C_pn_func(b,c,h,dist):
+                        if dist <= 2 * c: C_pn = 3.0
+                        elif b - dist <= 2 * c: C_pn = 3.0
+                        elif 2 * c < dist <= 4 * c: C_pn = 1.5
+                        elif 2 * c < b - dist <= 4 * c: C_pn = 1.5
+                        elif dist > 4 * c: C_pn = 0.75
+                        elif b - dist > 4 * c: C_pn = 0.75
+                        return C_pn
+                elif c/h > 0.7:
+                    def C_pn_func(b,c,h,dist):
+                        if dist <= 2 * h:C_pn = 2.4
+                        elif b - dist <= 2 * h:C_pn = 2.4
+                        elif 2 * h < dist <= 4 * h:C_pn = 1.2
+                        elif 2 * h < b - dist <= 4 * h:C_pn = 1.2
+                        elif dist > 4 * h:C_pn = 0.6
+                        elif b - dist > 4 * h:C_pn = 0.6                        
+                        return C_pn
+        # len = st.slider("dist along sign",0.0,b,b/2.0,step=b/10.0)
+        self.C_pn_func = C_pn_func
+
+        args = {'b':self.sign_w,
+                'c':self.sign_h,
+                'h':self.wind.Wind_mult.height,
+                'dist':st.slider("dist along sign",0.0,b,b/2.0,step=b/10.0)}
+        
+        st.subheader(f"Wind angle = {self.wind_angle.name}")
+        st.subheader(f"b/c = {b/c:.2f}, c/h = {c/h:.2f}")
+        st.subheader(f"e = {e:.2f}")
+        latex_C_pn, self.C_pn = handcalc(override="long")(C_pn_func)(**args)
+        st.latex(latex_C_pn)
+
+    def calc_C_fig(self):
+        args = {'C_pn':self.C_pn,
+                'delta':self.solidity}
+
+        def calc_C_fig_func(C_pn,delta):
+            K_p = 1 - (1 - delta)**2
+            C_fig = C_pn * K_p
+            return C_fig
+
+        C_fig_latex, self.C_fig = helper_funcs.func_by_run_type(self.wind.render_hc, args, calc_C_fig_func)
+        if self.wind.render_hc: st.latex(C_fig_latex)
+
+    def st_plot_C_pn(self):
+
+        #Set up plot
+        plot = Plot()
+
+        #Graph of Drag Factors along sign
+        x = np.linspace(0,self.sign_w,num=50)
+        y = [self.C_pn_func(self.sign_w, self.sign_h,self.wind.Wind_mult.height,ix) for ix in x ]
+        source = ColumnDataSource(dict(x=x, y=y))
+        drag_factor = Line(x='x',y='y',line_color = "#f46d43", line_width=3)
+        plot.add_glyph(source, drag_factor)
+
+        #Fille area under line
+        fill_under = Band(base='x',upper='y',source=source, level='underlay',fill_color = '#55FF88')
+        plot.add_layout(fill_under)
+
+        #Plot setup
+        plot.add_layout(LinearAxis(),'below')
+        plot.add_layout(LinearAxis(),'left')
+        plot.xaxis.axis_label = "Distance along sign (m)"
+        plot.yaxis.axis_label = "Drag Factor (C_pn)"
+        plot.y_range = Range1d(0, max(y)*1.3)
 
         return plot
+
+
     # def sign_AASHTO_fat(self):
         
 

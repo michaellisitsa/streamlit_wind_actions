@@ -38,3 +38,8 @@ class Directions(enum.Enum):
 class Significance(enum.Enum):
     MAJOR = enum.auto()
     MINOR = enum.auto()
+
+class Wind_angle(enum.Enum):
+    NORMAL = enum.auto()
+    ANGLE_45 = enum.auto()
+    PARALLEL = enum.auto
