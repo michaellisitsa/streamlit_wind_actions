@@ -9,7 +9,7 @@ import wind_multipliers
 from enum_vals import Regions, Cases, Directions, Significance, Wind_angle, Structure_type
 
 render_hc = st.sidebar.checkbox("Render hand calcs", value=True)
-
+loadcase = Cases[st.sidebar.selectbox("Select loadcase:",[l.name for l in Cases])]
 def main():
     Wind_mult = wind_multipliers.Wind_multipliers(render_hc)
     Wind_mult.st_region_inputs()
@@ -20,7 +20,7 @@ def main():
     Wind_mult.calc_wind_direction_multiplier()
     Wind_mult.render_multipliers()
 
-    Wind = wind.Wind(Wind_mult,Cases.ULS)
+    Wind = wind.Wind(Wind_mult,loadcase)
     Wind.st_wind_speed_inputs()
     Wind.calc_regional_wind_speed()
     Wind.st_display_regional_wind_speed()

@@ -24,7 +24,8 @@ class Wind:
 
     def st_wind_speed_inputs(self):
         st.sidebar.subheader("Select Average Recurrence Interval:")
-        self.ARI = st.sidebar.number_input(f"Select ARI for {self.loadcase.name} Wind:",min_value = 1, max_value = 10000, value=1000, key=self.loadcase)
+        default_ARI = (1000 if self.loadcase is Cases.ULS else 20)
+        self.ARI = st.sidebar.number_input(f"Select ARI for {self.loadcase.name} Wind:",min_value = 1, max_value = 10000, value=default_ARI, key=self.loadcase)
 
     def calc_regional_wind_speed(self):
         """Calculate regional wind speed based on region and ARI"""

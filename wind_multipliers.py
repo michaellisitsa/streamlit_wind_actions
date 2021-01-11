@@ -26,7 +26,7 @@ class Wind_multipliers:
 
     def st_terrain_inputs(self):
         st.sidebar.subheader("Inputs for $M_{z,cat}$ - Terrain Multiplier")
-        self.height = st.sidebar.number_input("Height of Wind Loading centre: (m)",min_value = 1., max_value = 200., value=10.)
+        self.height = st.sidebar.number_input("Height of Wind Loading centre: (m)",min_value = 1., max_value = 200., value=10.,step=1.0)
         self.terrain_category = st.sidebar.number_input("Terrain Category (halves allowed): (T4.2 AS1170.2)",min_value = 1., max_value = 4., value=1.,step=0.5)
 
     def terrain_multiplier(self):
