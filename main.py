@@ -39,9 +39,10 @@ def main():
         st.bokeh_chart(plot_RHS,False)
     elif Geom.structure_type is Structure_type.CHS:
         Geom.exposed_CHS_AS1170()
+        Geom.calc_wind_pressure_HS()
     elif Geom.structure_type is Structure_type.SIGN:
         Geom.calc_sign_AS1170()
-        Geom.calc_wind_pressure()
+        Geom.calc_wind_pressure_sign()
         plot_sign = Geom.st_plot_wind_pressure()
         st.bokeh_chart(plot_sign,False)
 

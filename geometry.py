@@ -78,7 +78,7 @@ class Geometry:
             C_d = max(0.6, 1.0 + 0.033 * log10(self.wind.V_sit_beta.value * h_r) - 0.025 * (log10(self.wind.V_sit_beta.value * h_r))**2)
         else:
             C_d = 1.2
-        
+        self.C_fig = C_d
         st.write(f"C_d = {C_d:.2f}")
 
     def st_RHS_plotting(self):
@@ -189,7 +189,7 @@ class Geometry:
         latex_C_pn, self.C_pn = handcalc(override="long")(C_pn_func)(**args)
         st.latex(latex_C_pn)
 
-    def calc_wind_pressure(self):
+    def calc_wind_pressure_sign(self):
         """
         Calculate wind pressure for a single point along the sign.
         Where 45 deg and large aspect ratio, a slider will be used to show the values at a particular dist along the sign
@@ -207,6 +207,23 @@ class Geometry:
             return C_fig, K_p, sigma_wind
 
         C_fig_latex, (self.C_fig, self.K_p, self.sigma_wind) = helper_funcs.func_by_run_type(self.wind.render_hc, args, calc_C_fig_func)
+        if self.wind.render_hc: st.latex(C_fig_latex)
+
+    def calc_wind_pressure_HS(self):
+        """
+        Calculate wind pressure for a single point along the sign.
+        Where 45 deg and large aspect ratio, a slider will be used to show the values at a particular dist along the sign
+        """
+        args = {'C_fig':self.C_fig,
+                'V_des_theta':self.wind.V_sit_beta.value,
+                'C_dyn':self.C_dyn}
+
+        def calc_C_fig_func(C_fig,V_des_theta,C_dyn):
+            gamma_air = 1.2 #kg per m3 as per Cl 2.4.1
+            sigma_wind = 0.5 * gamma_air * V_des_theta**2 * C_fig * C_dyn #Pa
+            return sigma_wind
+
+        C_fig_latex, self.sigma_wind = helper_funcs.func_by_run_type(self.wind.render_hc, args, calc_C_fig_func)
         if self.wind.render_hc: st.latex(C_fig_latex)
 
     def st_plot_wind_pressure(self):
