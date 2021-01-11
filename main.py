@@ -38,8 +38,8 @@ def main():
     st.bokeh_chart(plot_RHS,False)
     Geom_ULS.st_sign_picker()
     Geom_ULS.calc_sign_AS1170()
-    Geom_ULS.calc_C_fig()
-    plot_sign = Geom_ULS.st_plot_C_fig()
+    Geom_ULS.calc_wind_pressure()
+    plot_sign = Geom_ULS.st_plot_wind_pressure()
     st.bokeh_chart(plot_sign,False)
 
 if __name__ == '__main__':

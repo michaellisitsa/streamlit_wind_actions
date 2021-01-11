@@ -3,13 +3,12 @@ import streamlit as st
 from enum_vals import Regions, Cases, Directions, Significance, Wind_angle
 import helper_funcs
 
-from shapely.geometry import Polygon, MultiPolygon, LinearRing, box
-import shapely
-
 from math import log10
 
 import numpy as np
 from handcalcs import handcalc
+import forallpeople as u
+u.environment('structural')
 
 from typing import List, Optional, Union
 from typing import TYPE_CHECKING
@@ -23,19 +22,17 @@ from bokeh.plotting import figure, output_file, show
 
 class Geometry:
     def __init__(self,wind: 'Wind'):
+        '''
+        Inherit Wind (where site wind speed is stored)
+        Set up some other values to be used below
+        '''
         self.wind = wind
-        # def __init__(self, geom: Union[shapely.geometry.Polygon, shapely.geometry.MultiPolygon]):
-        # """Inits the Geometry class.
-        # Old args; control_points, shift
-        # """
-        # self.geom = geom
-        # self.control_points = [] # Given upon instantiation
-        # self.shift = [] # Given upon instantiation
-        # self.points = [] # Previously empty list
-        # self.facets = [] # Previously empty list
-        # self.holes = [] # Previously empty list
-        # self.perimeter = [] # Previously empty list
-        # # self.mesh = None # Previously not a property
+        self.psf_to_kPa = 0.04788 #Conversion factor to kPa pressure
+        self.I_f = 1.0 #Importance factor assumed as 1
+        #Dynamic factor assumed as 1.0 until further dynamic analysis is completed
+        #Further assessment is required in accordance with Sec 6 AS1170.2-2011
+        #to determine the C_dyn value to be used for gantries where <1Hz nat freq.
+        self.C_dyn = 1.0 
 
     def st_RHS_picker(self):
         self.d = st.sidebar.number_input("Alongwind Distance of RHS",min_value=25,max_value=3000,value=300) / 1000
@@ -59,6 +56,9 @@ class Geometry:
                  f'Crosswind drag factor is: {self.Cf_y:.2f}')
 
     def st_RHS_plotting(self):
+        """
+        Plot the drag factors on a sharp cornered rectanglar exposed member
+        """
         plot = Plot(title=None,match_aspect=True)
         glyph = Rect(x=0,y=0,width=self.d, height = self.b, fill_color = "#cab2d6")
         plot.add_glyph(glyph)
@@ -80,6 +80,9 @@ class Geometry:
         self.solidity = st.sidebar.number_input("Solidity Ratio of the structure (Ratio solid area to total area):",min_value = 0.1, max_value=1.0,value = 1.0)
 
     def calc_sign_AS1170(self):
+        """
+        Calculate the drag factor C_pn for a sign in accordance with AS1170 hoardings App D2
+        """
         b = self.sign_w
         c = self.sign_h
         h = self.wind.Wind_mult.height
@@ -167,26 +170,37 @@ class Geometry:
         latex_C_pn, self.C_pn = handcalc(override="long")(C_pn_func)(**args)
         st.latex(latex_C_pn)
 
-    def calc_C_fig(self):
+    def calc_wind_pressure(self):
+        """
+        Calculate wind pressure for a single point along the sign.
+        Where 45 deg and large aspect ratio, a slider will be used to show the values at a particular dist along the sign
+        """
         args = {'C_pn':self.C_pn,
-                'delta':self.solidity}
+                'delta':self.solidity,
+                'V_des_theta':self.wind.V_sit_beta.value,
+                'C_dyn':self.C_dyn}
 
-        def calc_C_fig_func(C_pn,delta):
+        def calc_C_fig_func(C_pn,delta,V_des_theta,C_dyn):
             K_p = 1 - (1 - delta)**2
             C_fig = C_pn * K_p
-            return C_fig, K_p
+            gamma_air = 1.2 #kg per m3 as per Cl 2.4.1
+            sigma_wind = 0.5 * gamma_air * V_des_theta**2 * C_fig * C_dyn #Pa
+            return C_fig, K_p, sigma_wind
 
-        C_fig_latex, (self.C_fig, self.K_p) = helper_funcs.func_by_run_type(self.wind.render_hc, args, calc_C_fig_func)
+        C_fig_latex, (self.C_fig, self.K_p, self.sigma_wind) = helper_funcs.func_by_run_type(self.wind.render_hc, args, calc_C_fig_func)
         if self.wind.render_hc: st.latex(C_fig_latex)
 
-    def st_plot_C_fig(self):
-
+    def st_plot_wind_pressure(self):
+        """
+        Plot wind pressure along the sign face.
+        The value may change for 45 degrees and a large aspect ratio.
+        """
         #Set up plot
         plot = Plot()
 
         #Graph of Drag Factors along sign
         x = np.linspace(0,self.sign_w,num=50)
-        y = [self.K_p*self.C_pn_func(self.sign_w, self.sign_h,self.wind.Wind_mult.height,ix) for ix in x ]
+        y = [0.5 * 1.2 * self.wind.V_sit_beta.value**2 * self.C_dyn * self.K_p / 1000 * self.C_pn_func(self.sign_w, self.sign_h,self.wind.Wind_mult.height,ix) for ix in x ]
         source = ColumnDataSource(dict(x=x, y=y))
         drag_factor = Line(x='x',y='y',line_color = "#f46d43", line_width=3)
         plot.add_glyph(source, drag_factor)
@@ -199,26 +213,7 @@ class Geometry:
         plot.add_layout(LinearAxis(),'below')
         plot.add_layout(LinearAxis(),'left')
         plot.xaxis.axis_label = "Distance along sign (m)"
-        plot.yaxis.axis_label = "Drag Factor (C_pn)"
+        plot.yaxis.axis_label = "Wind Pressure (kPa)"
         plot.y_range = Range1d(0, max(y)*1.3)
 
         return plot
-
-
-    # def sign_AASHTO_fat(self):
-        
-
-    # def exposed_
-
-# #Helper functions
-# def rectangular_section(self,b, d):
-#     """Constructs a rectangular section with the bottom left corner at the origin *(0, 0)*, with
-#     depth *d* and width *b*.
-#     """
-#     min_x = 0 - b/2
-#     min_y = 0 - d/2
-#     max_x = b/2
-#     max_y = d/2
-
-#     self.rectangle = box(min_x, min_y, max_x, max_y)
-#     return Geometry(rectangle)
