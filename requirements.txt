@@ -1,0 +1,7 @@
+handcalcs
+numpy
+scipy
+pandas
+forallpeople
+pillow
+bokeh
