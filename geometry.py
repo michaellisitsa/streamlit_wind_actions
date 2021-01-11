@@ -1,6 +1,6 @@
 import streamlit as st
 
-from enum_vals import Regions, Cases, Directions, Significance, Wind_angle
+from enum_vals import Regions, Cases, Directions, Significance, Wind_angle, Structure_type
 import helper_funcs
 
 from math import log10
@@ -34,9 +34,21 @@ class Geometry:
         #to determine the C_dyn value to be used for gantries where <1Hz nat freq.
         self.C_dyn = 1.0 
 
-    def st_RHS_picker(self):
-        self.d = st.sidebar.number_input("Alongwind Distance of RHS",min_value=25,max_value=3000,value=300) / 1000
-        self.b = st.sidebar.number_input("Crosswind Distance of RHS",min_value=25,max_value=3000,value=300) / 1000
+    def st_geom_picker(self):
+        st.sidebar.subheader("Structure Type")
+        self.structure_type = Structure_type[st.sidebar.selectbox("Type of Structure:",[s.name for s in Structure_type])]
+        if self.structure_type is Structure_type.RHS:
+            self.d = st.sidebar.number_input("Alongwind Distance of RHS",min_value=25,max_value=3000,value=300) / 1000
+            self.b = st.sidebar.number_input("Crosswind Distance of RHS",min_value=25,max_value=3000,value=300) / 1000
+        elif self.structure_type is Structure_type.CHS:
+            self.d = st.sidebar.number_input("Alongwind Distance of RHS",min_value=25,max_value=3000,value=300) / 1000
+            self.b = st.sidebar.number_input("Crosswind Distance of RHS",min_value=25,max_value=3000,value=300) / 1000
+        elif self.structure_type is Structure_type.SIGN:
+            st.sidebar.subheader("Sign Size and Direction")
+            self.sign_h = st.sidebar.number_input("Height of Signboard (mm)",min_value=100,max_value=10000,value=2000) / 1000
+            self.sign_w = st.sidebar.number_input("Width of Signboard (mm)",min_value=100,max_value=20000,value=2000) / 1000
+            self.wind_angle = Wind_angle[st.sidebar.selectbox("Wind Angle to Structure",[a.name for a in Wind_angle])]
+            self.solidity = st.sidebar.number_input("Solidity Ratio of the structure (Ratio solid area to total area):",min_value = 0.1, max_value=1.0,value = 1.0)
 
     def exposed_RHS_AS1170(self):
         """Crosswind coefficient - Figure E2(B)AS1170.2-2011"""
@@ -55,6 +67,20 @@ class Geometry:
         st.text(f'Alongwind drag factor is: {self.Cf_x:.2f}\n'
                  f'Crosswind drag factor is: {self.Cf_y:.2f}')
 
+    def exposed_CHS_AS1170(self):
+        if self.b * self.wind.V_sit_beta < 4:
+            C_d = 1.2
+        elif 4 < self.b * self.wind.V_sit_beta.value < 10:
+            gradient = (1.2-0.6)/(10-4)
+            C_d = 1.2 - gradient * (self.b * self.wind.V_sit_beta.value - 4)
+        elif self.b * self.wind.V_sit_beta > 10:
+            h_r = 30e-6
+            C_d = max(0.6, 1.0 + 0.033 * log10(self.wind.V_sit_beta.value * h_r) - 0.025 * (log10(self.wind.V_sit_beta.value * h_r))**2)
+        else:
+            C_d = 1.2
+        
+        st.write(f"C_d = {C_d:.2f}")
+
     def st_RHS_plotting(self):
         """
         Plot the drag factors on a sharp cornered rectanglar exposed member
@@ -71,14 +97,7 @@ class Geometry:
         plot.add_glyph(Text(x=0,y=self.b/2,text=[f"Cf_y = {self.Cf_y:.2f}"],text_align="left"))
         plot.add_glyph(Text(x=-self.d/4,y=0,text=[f"Cf_x = {self.Cf_x:.2f}"],text_align="left"))
         return plot
-
-    def st_sign_picker(self):
-        st.sidebar.subheader("Sign Size and Direction")
-        self.sign_h = st.sidebar.number_input("Height of Signboard (mm)",min_value=100,max_value=10000,value=2000) / 1000
-        self.sign_w = st.sidebar.number_input("Width of Signboard (mm)",min_value=100,max_value=20000,value=2000) / 1000
-        self.wind_angle = Wind_angle[st.sidebar.selectbox("Wind Angle to Structure",[a.name for a in Wind_angle])]
-        self.solidity = st.sidebar.number_input("Solidity Ratio of the structure (Ratio solid area to total area):",min_value = 0.1, max_value=1.0,value = 1.0)
-
+ 
     def calc_sign_AS1170(self):
         """
         Calculate the drag factor C_pn for a sign in accordance with AS1170 hoardings App D2

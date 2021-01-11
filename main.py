@@ -6,7 +6,7 @@ import streamlit as st
 import geometry
 import wind
 import wind_multipliers
-from enum_vals import Regions, Cases, Directions, Significance
+from enum_vals import Regions, Cases, Directions, Significance, Wind_angle, Structure_type
 
 render_hc = st.sidebar.checkbox("Render hand calcs", value=True)
 
@@ -31,16 +31,19 @@ def main():
     Wind_SLS.calc_regional_wind_speed()
     Wind_SLS.calc_site_wind_speed()
 
-    Geom_ULS = geometry.Geometry(Wind_ULS)
-    Geom_ULS.st_RHS_picker()
-    Geom_ULS.exposed_RHS_AS1170()
-    plot_RHS = Geom_ULS.st_RHS_plotting()
-    st.bokeh_chart(plot_RHS,False)
-    Geom_ULS.st_sign_picker()
-    Geom_ULS.calc_sign_AS1170()
-    Geom_ULS.calc_wind_pressure()
-    plot_sign = Geom_ULS.st_plot_wind_pressure()
-    st.bokeh_chart(plot_sign,False)
+    Geom = geometry.Geometry(Wind_ULS)
+    Geom.st_geom_picker()
+    if Geom.structure_type is Structure_type.RHS:
+        Geom.exposed_RHS_AS1170()
+        plot_RHS = Geom.st_RHS_plotting()
+        st.bokeh_chart(plot_RHS,False)
+    elif Geom.structure_type is Structure_type.CHS:
+        Geom.exposed_CHS_AS1170()
+    elif Geom.structure_type is Structure_type.SIGN:
+        Geom.calc_sign_AS1170()
+        Geom.calc_wind_pressure()
+        plot_sign = Geom.st_plot_wind_pressure()
+        st.bokeh_chart(plot_sign,False)
 
 if __name__ == '__main__':
     main()

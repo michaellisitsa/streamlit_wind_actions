@@ -42,4 +42,9 @@ class Significance(enum.Enum):
 class Wind_angle(enum.Enum):
     NORMAL = enum.auto()
     ANGLE_45 = enum.auto()
-    PARALLEL = enum.auto
+    PARALLEL = enum.auto()
+
+class Structure_type(enum.Enum):
+    RHS = enum.auto()
+    CHS = enum.auto()
+    SIGN = enum.auto()
