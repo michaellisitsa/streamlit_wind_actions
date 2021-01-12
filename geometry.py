@@ -64,8 +64,6 @@ class Geometry:
         #Get the C_fy_vals intercept for d/b ratio provided
         self.Cf_x = np.interp(self.d/self.b,aspect_Cfx_box,Cfx_box)
         self.Cf_y = np.interp(self.d/self.b,aspect_Cfy_box,Cfy_box)
-        st.text(f'Alongwind drag factor is: {self.Cf_x:.2f}\n'
-                 f'Crosswind drag factor is: {self.Cf_y:.2f}')
 
     def calc_drag_CHS_AS1170(self):
         if self.b * self.wind.V_sit_beta < 4:
@@ -80,7 +78,19 @@ class Geometry:
             C_d = 1.2
         self.C_d = C_d
 
-    def calc_sign_AS1170(self):
+    def calc_drag_sign_AASHTO(self):
+        '''FATIGUE LOADING
+        Calculate Aerodynamic Drag Factor and Lateral Wind Pressures
+        Refer AASHTO Table 3.8.7-1—Wind Drag Coefficients'''
+        #Aspect is Lsign/Wsign, where Lsign is the larger dimension, Wsign is smaller
+        #Symmetrical Cd values provided so comparison does not need to be made between
+        #sign width and height
+        aspect =  np.array([1/15, 1/10, 1/5, 1/2,  1.0,  2.0,  5.0, 10,   15.0]) #aspect ratio
+        #T3.8.7-1
+        Cds_sign_fatigue = np.array([1.3,  1.23, 1.2, 1.19, 1.12, 1.19, 1.2, 1.23, 1.30])
+        self.C_fig = np.interp(self.sign_h/self.sign_w,aspect,Cds_sign_fatigue)
+
+    def calc_drag_sign_AS1170(self):
         """
         Calculate the drag factor C_pn for a sign in accordance with AS1170 hoardings App D2
         """
@@ -177,25 +187,52 @@ class Geometry:
         else:
             st.subheader("")
 
+    def calc_solidity_factor(self):
+        """
+        For AS1170, signs may have a perforated hoarding, which can reduce the wind pressure
+        """
+        args = {'delta':self.solidity,
+                'C_pn':self.C_pn}
+
+        def calc_K_p_func(delta,C_pn):
+            K_p = 1 - (1 - delta)**2
+            C_fig = C_pn * K_p
+            return C_fig, K_p
+
+        K_p_latex, (self.C_fig, self.K_p) = helper_funcs.func_by_run_type(self.wind.Wind_mult.render_hc, args, calc_K_p_func)
+        if self.wind.Wind_mult.render_hc: st.latex(K_p_latex)
+
     def calc_wind_pressure_sign(self):
         """
         Calculate wind pressure for a single point along the sign.
         Where 45 deg and large aspect ratio, a slider will be used to show the values at a particular dist along the sign
         """
-        args = {'C_pn':self.C_pn,
-                'delta':self.solidity,
+        args = {'C_fig':self.C_fig,
                 'V_des_theta':self.wind.V_sit_beta.value,
                 'C_dyn':self.C_dyn}
 
-        def calc_C_fig_func(C_pn,delta,V_des_theta,C_dyn):
-            K_p = 1 - (1 - delta)**2
-            C_fig = C_pn * K_p
+        def calc_wind_pressure_func(C_fig,V_des_theta,C_dyn):
             gamma_air = 1.2 #kg per m3 as per Cl 2.4.1
             sigma_wind = 0.5 * gamma_air * V_des_theta**2 * C_fig * C_dyn #Pa
-            return C_fig, K_p, sigma_wind
+            return sigma_wind
 
-        C_fig_latex, (self.C_fig, self.K_p, self.sigma_wind) = helper_funcs.func_by_run_type(self.wind.Wind_mult.render_hc, args, calc_C_fig_func)
-        if self.wind.Wind_mult.render_hc: st.latex(C_fig_latex)
+        wind_pressure_latex, self.sigma_wind = helper_funcs.func_by_run_type(self.wind.Wind_mult.render_hc, args, calc_wind_pressure_func)
+        if self.wind.Wind_mult.render_hc: st.latex(wind_pressure_latex)
+
+    def calc_wind_pressure_sign_fat(self):
+        """
+        Calculate wind pressure for the sign UDL for fatigue loading
+        """
+        args = {'C_fig':self.C_fig,
+                'I_f':1.0,
+                'psf_to_kPa':self.psf_to_kPa}
+
+        def calc_wind_pressure_fat_func(C_fig,I_f,psf_to_kPa):
+            sigma_wind = psf_to_kPa * 5.2 * C_fig * I_f #Nat wind gust Cl 11.7.1.2
+            return sigma_wind
+
+        wind_pressure_latex, self.sigma_wind = helper_funcs.func_by_run_type(self.wind.Wind_mult.render_hc, args, calc_wind_pressure_fat_func)
+        if self.wind.Wind_mult.render_hc: st.latex(wind_pressure_latex)
 
     def calc_wind_pressure_CHS(self):
         """
@@ -264,7 +301,10 @@ class Geometry:
 
         #Graph of Drag Factors along sign
         x = np.linspace(0,self.sign_w,num=50)
-        y = [0.5 * 1.2 * self.wind.V_sit_beta.value**2 * self.C_dyn * self.K_p / 1000 * self.C_pn_func(self.sign_w, self.sign_h,self.wind.Wind_mult.height,ix) for ix in x ]
+        if self.wind.loadcase is Cases.FAT:
+            y = [0.5 * 1.2 * self.wind.V_sit_beta.value**2 * self.C_dyn / 1000 * self.C_fig for ix in x ]
+        else:
+            y = [0.5 * 1.2 * self.wind.V_sit_beta.value**2 * self.C_dyn * self.K_p / 1000 * self.C_pn_func(self.sign_w, self.sign_h,self.wind.Wind_mult.height,ix) for ix in x ]
         source = ColumnDataSource(dict(x=x, y=y))
         drag_factor = Line(x='x',y='y',line_color = "#f46d43", line_width=3)
         plot.add_glyph(source, drag_factor)
@@ -281,3 +321,4 @@ class Geometry:
         plot.y_range = Range1d(0, max(y)*1.3)
 
         return plot
+
