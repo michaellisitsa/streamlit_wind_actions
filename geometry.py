@@ -228,10 +228,11 @@ class Geometry:
                 'psf_to_kPa':self.psf_to_kPa}
 
         def calc_wind_pressure_fat_func(C_fig,I_f,psf_to_kPa):
-            sigma_wind = psf_to_kPa * 5.2 * C_fig * I_f #Nat wind gust Cl 11.7.1.2
-            return sigma_wind
+            P_NW = psf_to_kPa * 5.2 * C_fig * I_f #Nat wind gust Cl 11.7.1.2
+            P_G = psf_to_kPa * 21 * I_f #Galloping (Cantilever gantry only) Cl 11.7.1.1
+            return P_NW, P_G
 
-        wind_pressure_latex, self.sigma_wind = helper_funcs.func_by_run_type(self.wind.Wind_mult.render_hc, args, calc_wind_pressure_fat_func)
+        wind_pressure_latex, (self.P_NW,self.P_G) = helper_funcs.func_by_run_type(self.wind.Wind_mult.render_hc, args, calc_wind_pressure_fat_func)
         if self.wind.Wind_mult.render_hc: st.latex(wind_pressure_latex)
 
     def calc_wind_pressure_CHS(self):
