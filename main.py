@@ -6,7 +6,7 @@ import streamlit as st
 import geometry
 import wind
 import wind_multipliers
-from enum_vals import Regions, Cases, Directions, Significance, Wind_angle, Structure_type
+from enum_vals import Regions, Cases, Directions, Significance, Wind_angle, Structure_type, Frame
 
 render_hc = st.sidebar.checkbox("Render hand calcs", value=True)
 loadcase = Cases[st.sidebar.selectbox("Select loadcase:",[l.name for l in Cases])]
@@ -54,7 +54,10 @@ def main():
             st.bokeh_chart(plot_RHS,False)
         elif Geom.structure_type is Structure_type.CHS:
             Geom.calc_drag_CHS_AS1170()
-            Geom.calc_wind_pressure_CHS()
+            if Geom.frame_type is Frame.NONE:
+                Geom.calc_wind_pressure_CHS()
+            else:
+                Geom.calc_drag_frame_CHS_AS1170()
         elif Geom.structure_type is Structure_type.SIGN:
             Geom.calc_drag_sign_AS1170()
             Geom.calc_solidity_factor()

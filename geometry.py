@@ -1,11 +1,13 @@
 import streamlit as st
 
-from enum_vals import Regions, Cases, Directions, Significance, Wind_angle, Structure_type
+from enum_vals import Regions, Cases, Directions, Significance, Wind_angle, Structure_type, Frame
 import helper_funcs
 
 from math import log10
 
 import numpy as np
+import pandas as pd
+from scipy.interpolate import griddata
 from handcalcs import handcalc
 import forallpeople as u
 u.environment('structural')
@@ -37,12 +39,24 @@ class Geometry:
     def st_geom_picker(self):
         st.sidebar.subheader("Structure Type")
         self.structure_type = Structure_type[st.sidebar.selectbox("Type of Structure:",[s.name for s in Structure_type])]
+        self.frame_type = Frame[st.sidebar.selectbox("Type of Frame:",[f.name for f in Frame])]           
+
         if self.structure_type is Structure_type.RHS:
             self.d = st.sidebar.number_input("Alongwind Distance of RHS",min_value=25,max_value=3000,value=300) / 1000
             self.b = st.sidebar.number_input("Crosswind Distance of RHS",min_value=25,max_value=3000,value=300) / 1000
+            if self.frame_type is not Frame.NONE:
+                self.solidity = st.sidebar.number_input("Solidity Ratio of the structure (Ratio solid area to total area):",min_value = 0.00, max_value=1.0,value = 1.0)
+                self.l_truss = st.sidebar.number_input("Length of truss (m):",min_value=1.,max_value=100.,value=10.)
+                self.b_truss = st.sidebar.number_input("Height of truss (m):",min_value=0.1,max_value=4.,value=2.)
+                self.s_truss = st.sidebar.number_input("Frame spacing (m):",min_value=0.1,max_value=4.,value=2.)
         elif self.structure_type is Structure_type.CHS:
-            self.d = st.sidebar.number_input("Alongwind Distance of RHS",min_value=25,max_value=3000,value=300) / 1000
-            self.b = st.sidebar.number_input("Crosswind Distance of RHS",min_value=25,max_value=3000,value=300) / 1000
+            self.d = st.sidebar.number_input("Diameter of CHS",min_value=25,max_value=3000,value=300) / 1000
+            self.b = self.d
+            if self.frame_type is not Frame.NONE:
+                self.solidity = st.sidebar.number_input("Solidity Ratio of the structure (Ratio solid area to total area):",min_value = 0.00, max_value=1.0,value = 1.0)
+                self.l_truss = st.sidebar.number_input("Length of truss (m):",min_value=1.,max_value=100.,value=10.)
+                self.b_truss = st.sidebar.number_input("Height of truss (m):",min_value=0.1,max_value=4.,value=2.)
+                self.s_truss = st.sidebar.number_input("Frame spacing (m):",min_value=0.1,max_value=4.,value=2.)
         elif self.structure_type is Structure_type.SIGN:
             st.sidebar.subheader("Sign Size and Direction")
             self.sign_h = st.sidebar.number_input("Height of Signboard (mm)",min_value=100,max_value=10000,value=2000) / 1000
@@ -77,6 +91,7 @@ class Geometry:
         else:
             C_d = 1.2
         self.C_d = C_d
+        st.write(f"C_d = {C_d:.2f}")
 
     def calc_drag_sign_AASHTO(self):
         '''FATIGUE LOADING
@@ -250,6 +265,51 @@ class Geometry:
 
         C_fig_latex, self.sigma_wind = helper_funcs.func_by_run_type(self.wind.Wind_mult.render_hc, args, calc_C_fig_func)
         if self.wind.Wind_mult.render_hc: st.latex(C_fig_latex)
+
+    def calc_drag_frame_CHS_AS1170(self):
+        """
+        For AS1170, open frames have a solidity ratio
+        """
+        delta_e = min(1.2 * self.solidity**1.75,1.0)
+        st.write(f"delta_e = {delta_e:.2f} (C_fig modified for 0.2 < delta_e < 0.8)")
+        if 1/3 < self.l_truss / self.b_truss < 3 and 0.2 < delta_e < 0.8:
+            C_fig = 1.2 + 0.26 * (1 - delta_e)
+            st.write(f"C_fig = 1.2 + 0.26 * (1 - {delta_e:.2f}) = {C_fig:.2f}")
+        else:
+            C_fig = self.C_d
+            st.write(f"C_fig = {C_fig:.2f}")
+        if self.frame_type is Frame.MULTIPLE:
+            lamb_frame = self.s_truss / min(self.l_truss, self.b_truss)
+            st.write(f"Frame space ratio (lamda) = s_truss ({self.s_truss}) / min({self.l_truss},{self.b_truss}) = {lamb_frame}")
+            #Hardcode table of shielding factors
+            self.frame_shielding = pd.DataFrame({
+                        'frame_spacing_ratio': [0.0, 0.2, 0.5, 1.0, 2.0, 4.0, 8.0, 50.],
+                        '0':                   [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+                        '0.1':                 [0.8, 0.8, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+                        '0.2':                 [0.5, 0.5, 0.8, 0.8, 0.9, 1.0, 1.0, 1.0],
+                        '0.3':                 [0.3, 0.3, 0.6, 0.7, 0.7, 0.8, 1.0, 1.0],
+                        '0.4':                 [0.2, 0.2, 0.4, 0.5, 0.6, 0.7, 1.0, 1.0],
+                        '0.5':                 [0.2, 0.2, 0.2, 0.3, 0.4, 0.6, 1.0, 1.0],
+                        '0.7':                 [0.2, 0.2, 0.2, 0.2, 0.2, 0.4, 1.0, 1.0],
+                        '1.0':                 [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 1.0, 1.0],}) #TABLE E2 AS1170.2
+            self.frame_shielding.set_index('frame_spacing_ratio',inplace=True)
+            frame_shielding_stacked = self.frame_shielding.stack().reset_index().values
+
+            with st.beta_expander("Expand for K_sh factors Table E2 AS1170.2 for normal wind"):
+                st.table(self.frame_shielding)
+
+            #2d interpolation
+            #https://stackoverflow.com/questions/56291133/interpolation-of-a-pandas-dataframe
+            self.K_sh = griddata(frame_shielding_stacked[:,0:2],
+                                    frame_shielding_stacked[:,2],
+                                    [(lamb_frame, delta_e)],
+                                    method='linear')[0]
+            self.C_fig = (1 + self.K_sh) * C_fig
+            st.write(f"K_sh = {self.K_sh:.2f}")
+            st.write(f"C_fig = (1 + {self.K_sh:.2f}) * {C_fig:.2f} = {self.C_fig:.2f}")
+        else:
+            self.K_sh = 1.0
+        
 
     def calc_wind_pressure_RHS(self):
         """

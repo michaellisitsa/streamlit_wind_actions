@@ -48,3 +48,8 @@ class Structure_type(enum.Enum):
     RHS = enum.auto()
     CHS = enum.auto()
     SIGN = enum.auto()
+
+class Frame(enum.Enum):
+    NONE = enum.auto()
+    SINGLE = enum.auto()
+    MULTIPLE = enum.auto()
