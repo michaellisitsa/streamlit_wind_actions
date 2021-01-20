@@ -86,12 +86,28 @@ class Geometry:
             gradient = (1.2-0.6)/(10-4)
             C_d = 1.2 - gradient * (self.b * self.wind.V_sit_beta.value - 4)
         elif self.b * self.wind.V_sit_beta > 10:
-            h_r = 30e-6
+            h_r = 150e-6
             C_d = max(0.6, 1.0 + 0.033 * log10(self.wind.V_sit_beta.value * h_r) - 0.025 * (log10(self.wind.V_sit_beta.value * h_r))**2)
         else:
             C_d = 1.2
         self.C_d = C_d
-        st.write(f"C_d = {C_d:.2f}")
+        self.C_fig = C_d
+        st.write(f"C_fig = {self.C_fig:.2f}")
+
+    def calc_drag_CHS_AASHTO(self):
+        V_fat = 37 #mph #NCHRP 412 report Cl 3.2.1.3
+        m_to_ft = 3.28
+        if self.b * m_to_ft * V_fat <= 39:
+            C_d = 1.1
+        elif 39 < self.b * m_to_ft * V_fat < 78:
+            C_d = 129 / (self.b * m_to_ft * V_fat)**1.3
+        elif self.b * m_to_ft * V_fat >= 78:
+            C_d = 0.45
+        else:
+            C_d = "Error"
+        self.C_d = C_d
+        self.C_fig = C_d
+        st.write(f"C_fig = {self.C_fig:.2f}")
 
     def calc_drag_sign_AASHTO(self):
         '''FATIGUE LOADING
@@ -254,13 +270,13 @@ class Geometry:
         """
         Calculate horiztontal wind pressure for a single point along the CHS member.
         """
-        args = {'C_d':self.C_d,
+        args = {'C_fig':self.C_fig,
                 'V_des_theta':self.wind.V_sit_beta.value,
                 'C_dyn':self.C_dyn}
 
-        def calc_C_fig_func(C_d,V_des_theta,C_dyn):
+        def calc_C_fig_func(C_fig,V_des_theta,C_dyn):
             gamma_air = 1.2 #kg per m3 as per Cl 2.4.1
-            sigma_wind = 0.5 * gamma_air * V_des_theta**2 * C_d * C_dyn #Pa
+            sigma_wind = 0.5 * gamma_air * V_des_theta**2 * C_fig * C_dyn #Pa
             return sigma_wind
 
         C_fig_latex, self.sigma_wind = helper_funcs.func_by_run_type(self.wind.Wind_mult.render_hc, args, calc_C_fig_func)

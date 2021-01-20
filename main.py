@@ -21,9 +21,8 @@ def main():
             st.warning("Not yet implemented, try selecting SIGNS")
             pass
         if Geom.structure_type is Structure_type.CHS:
-            #TODO - Add API calls
-            st.warning("Not yet implemented, try selecting SIGNS")
-            pass
+            Geom.calc_drag_CHS_AASHTO()
+            Geom.calc_wind_pressure_sign_fat()
         if Geom.structure_type is Structure_type.SIGN:
             Geom.calc_drag_sign_AASHTO()
             Geom.calc_wind_pressure_sign_fat()
@@ -58,6 +57,7 @@ def main():
                 Geom.calc_wind_pressure_CHS()
             else:
                 Geom.calc_drag_frame_CHS_AS1170()
+                Geom.calc_wind_pressure_CHS()
         elif Geom.structure_type is Structure_type.SIGN:
             Geom.calc_drag_sign_AS1170()
             Geom.calc_solidity_factor()
